@@ -1,0 +1,114 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id       Int      @id @default(autoincrement())
+  name     String
+  email    String   @unique
+  password String
+  tol      String?
+
+  // ความสัมพันธ์
+  customers   Customer[]
+  closedDeals ClosedDeal[]
+}
+
+model Product {
+  id       Int      @id @default(autoincrement())
+  name     String
+  price    Float
+  property String?
+
+  proposals Proposal[]
+}
+
+model Customer {
+  id          Int             @id @default(autoincrement())
+  name        String
+  tol         String?
+  email       String          @unique
+  password    String
+
+  // ความสัมพันธ์
+  communications Communications[]
+  contacted    Contacted?
+  quotations   Quotation[]
+  negotiations Negotiation[]
+  closedDeals  ClosedDeal[]
+
+  userId Int?
+  user   User? @relation(fields: [userId], references: [id])
+}
+
+model Communications {
+  id        Int      @id @default(autoincrement())
+  phone     String?
+  chat      String?
+  voiceNote String?
+
+  customerId Int
+  customer   Customer @relation(fields: [customerId], references: [id])
+}
+
+model Contacted {
+  id        Int      @id @default(autoincrement())
+  status    String
+  stateDate DateTime @default(now())
+
+  customerId Int  @unique
+  customer   Customer @relation(fields: [customerId], references: [id])
+}
+
+model Quotation {
+  id        Int      @id @default(autoincrement())
+  status    String
+  stateDate DateTime @default(now())
+
+  customerId Int
+  customer   Customer @relation(fields: [customerId], references: [id])
+
+  proposals Proposal[]
+}
+
+model Proposal {
+  id           Int       @id @default(autoincrement())
+  quotation    String
+  terms        String?
+  priceOffered Float
+
+  productId   Int?
+  product     Product?   @relation(fields: [productId], references: [id])
+
+  quotationId Int
+  quotationDb Quotation  @relation(fields: [quotationId], references: [id])
+}
+
+model Negotiation {
+  id        Int      @id @default(autoincrement())
+  status    String
+  stateDate DateTime @default(now())
+
+  customerId Int
+  customer   Customer @relation(fields: [customerId], references: [id])
+}
+
+model ClosedDeal {
+  id          Int      @id @default(autoincrement())
+  status      String
+  stateDate   DateTime @default(now())
+  finalValue  Float?
+  dealStatus  String?
+  closingDate DateTime?
+
+  customerId Int
+  customer   Customer @relation(fields: [customerId], references: [id])
+
+  userId Int?
+  user   User? @relation(fields: [userId], references: [id])
+}
