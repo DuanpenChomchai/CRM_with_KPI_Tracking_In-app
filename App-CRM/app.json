@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "App_CRM",
-    "slug": "App_CRM",
+    "name": "App-CRM",
+    "slug": "App-CRM",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",

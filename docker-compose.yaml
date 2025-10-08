@@ -13,6 +13,17 @@ services:
       - "${POSTGRES_PORT}:5432"
     volumes:
       - satisatang_postgres_data:/var/lib/postgresql/data
+    
+  pgadmin:
+      image: dpage/pgadmin4
+      container_name: my_pgadmin
+      environment:
+        PGADMIN_DEFAULT_EMAIL: admin@admin.com
+        PGADMIN_DEFAULT_PASSWORD: admin
+      ports:
+        - "8080:80"
+      depends_on:
+        - postgres
 
 volumes:
   satisatang_postgres_data:

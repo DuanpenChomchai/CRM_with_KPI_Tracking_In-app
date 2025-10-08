@@ -7,108 +7,267 @@ generator client {
   provider = "prisma-client-js"
 }
 
+/**
+ * ==== Enums ====
+ */
+enum Role {
+  CUSTOMER
+  SALE
+  MANAGER
+  ADMIN
+}
+
+enum KpiStage {
+  COMMUNICATIONS
+  CONTACTED
+  QUOTATION
+  NEGOTIATION
+  CLOSED_DEAL
+}
+
+enum KpiMetric {
+  TIME_TO_FIRST_CONTACT // เวลาตั้งแต่สร้างลูกค้าจนติดต่อสำเร็จ
+  TIME_IN_STAGE // เวลาที่ค้างอยู่ในสเตจใดสเตจหนึ่ง
+  TIME_TO_QUOTATION // เวลาก่อนออกใบเสนอราคาแรก
+  TIME_TO_CLOSE // เวลาตั้งแต่เริ่มโอกาสขายจนปิดดีล
+  RESPONSE_TIME // เวลาในการตอบกลับ
+  CUSTOM // เมตริกกำหนดเอง
+}
+
+/**
+ * ==== Models ====
+ */
+
 model User {
-  id       Int      @id @default(autoincrement())
+  id       Int     @id @default(autoincrement())
   name     String
-  email    String   @unique
+  email    String  @unique
   password String
   tol      String?
+  role     Role    @default(CUSTOMER)
 
-  // ความสัมพันธ์
-  customers   Customer[]
-  closedDeals ClosedDeal[]
+  // Relations
+  customers      Customer[]
+  closedDeals    ClosedDeal[]
+  communications Communications[]
+
+  // Audit
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  KPITracking KPITracking[]
 }
 
 model Product {
-  id       Int      @id @default(autoincrement())
+  id       Int     @id @default(autoincrement())
   name     String
-  price    Float
+  price    Decimal @db.Decimal(12, 2)
   property String?
 
   proposals Proposal[]
+
+  // Audit
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Customer {
-  id          Int             @id @default(autoincrement())
-  name        String
-  tol         String?
-  email       String          @unique
-  password    String
+  id       Int     @id @default(autoincrement())
+  name     String
+  tol      String?
+  email    String  @unique
+  password String
 
-  // ความสัมพันธ์
+  // Relations
   communications Communications[]
-  contacted    Contacted?
-  quotations   Quotation[]
-  negotiations Negotiation[]
-  closedDeals  ClosedDeal[]
+  contacted      Contacted?
+  quotations     Quotation[]
+  negotiations   Negotiation[]
+  closedDeals    ClosedDeal[]
 
   userId Int?
   user   User? @relation(fields: [userId], references: [id])
+
+  // Audit
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  KPITracking KPITracking[]
+
+  @@index([userId])
 }
 
 model Communications {
-  id        Int      @id @default(autoincrement())
+  id        Int     @id @default(autoincrement())
   phone     String?
   chat      String?
   voiceNote String?
 
-  customerId Int
-  customer   Customer @relation(fields: [customerId], references: [id])
-}
-
-model Contacted {
-  id        Int      @id @default(autoincrement())
-  status    String
-  stateDate DateTime @default(now())
-
-  customerId Int  @unique
-  customer   Customer @relation(fields: [customerId], references: [id])
-}
-
-model Quotation {
-  id        Int      @id @default(autoincrement())
-  status    String
-  stateDate DateTime @default(now())
-
-  customerId Int
-  customer   Customer @relation(fields: [customerId], references: [id])
-
-  proposals Proposal[]
-}
-
-model Proposal {
-  id           Int       @id @default(autoincrement())
-  quotation    String
-  terms        String?
-  priceOffered Float
-
-  productId   Int?
-  product     Product?   @relation(fields: [productId], references: [id])
-
-  quotationId Int
-  quotationDb Quotation  @relation(fields: [quotationId], references: [id])
-}
-
-model Negotiation {
-  id        Int      @id @default(autoincrement())
-  status    String
-  stateDate DateTime @default(now())
-
-  customerId Int
-  customer   Customer @relation(fields: [customerId], references: [id])
-}
-
-model ClosedDeal {
-  id          Int      @id @default(autoincrement())
-  status      String
-  stateDate   DateTime @default(now())
-  finalValue  Float?
-  dealStatus  String?
-  closingDate DateTime?
-
+  // Relations
   customerId Int
   customer   Customer @relation(fields: [customerId], references: [id])
 
   userId Int?
   user   User? @relation(fields: [userId], references: [id])
+
+  // Audit
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([customerId])
+  @@index([userId])
+}
+
+model Contacted {
+  id        Int       @id @default(autoincrement())
+  status    String
+  topic     String?
+  note      String?
+  stateDate DateTime  @default(now())
+  endDate   DateTime?
+
+  // Relations
+  customerId Int      @unique
+  customer   Customer @relation(fields: [customerId], references: [id])
+
+  // Audit
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Quotation {
+  id              Int       @id @default(autoincrement())
+  status          String
+  stateDate       DateTime  @default(now())
+  terms           String?
+  quotationNumber String    @unique
+  totalAmount     Decimal   @db.Decimal(12, 2)
+  note            String?
+  endDate         DateTime?
+
+  // Relations
+  customerId Int
+  customer   Customer   @relation(fields: [customerId], references: [id])
+  proposals  Proposal[]
+
+  // Audit
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  KPITracking KPITracking[]
+
+  @@index([customerId])
+  @@index([stateDate])
+}
+
+model Proposal {
+  id           Int     @id @default(autoincrement())
+  quotation    String // ชื่อ/หัวข้อรายการข้อเสนอ
+  terms        String?
+  priceOffered Decimal @db.Decimal(12, 2)
+
+  // Relations
+  productId Int?
+  product   Product? @relation(fields: [productId], references: [id])
+
+  quotationId Int
+  quotationDb Quotation @relation(fields: [quotationId], references: [id])
+
+  // Audit
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([productId])
+  @@index([quotationId])
+}
+
+model Negotiation {
+  id        Int       @id @default(autoincrement())
+  status    String
+  stateDate DateTime  @default(now())
+  note      String?
+  endDate   DateTime?
+
+  // Relations
+  customerId Int
+  customer   Customer @relation(fields: [customerId], references: [id])
+
+  // Audit
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  KPITracking KPITracking[]
+
+  @@index([customerId])
+  @@index([stateDate])
+}
+
+model ClosedDeal {
+  id          Int       @id @default(autoincrement())
+  status      String
+  stateDate   DateTime  @default(now())
+  finalValue  Decimal?  @db.Decimal(12, 2)
+  discount    Decimal?  @db.Decimal(12, 2)
+  dealStatus  String?
+  closingDate DateTime?
+  note        String?
+  endDate     DateTime?
+
+  // Relations
+  customerId Int
+  customer   Customer @relation(fields: [customerId], references: [id])
+
+  userId Int?
+  user   User? @relation(fields: [userId], references: [id])
+
+  // Audit
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  KPITracking KPITracking[]
+
+  @@index([customerId])
+  @@index([userId])
+  @@index([closingDate])
+}
+
+/**
+ * ==== KPI Tracking ====
+ */
+model KPITracking {
+  id Int @id @default(autoincrement())
+
+  stage  KpiStage
+  metric KpiMetric
+
+  // Window / Values
+  startedAt     DateTime
+  endedAt       DateTime?
+  valueSeconds  Int? // ค่าที่คำนวณเมื่อปิดช่วง (endedAt - startedAt เป็นวินาที)
+  targetSeconds Int?
+  breached      Boolean   @default(false)
+  note          String?
+
+  // Relations (ใส่เฉพาะที่เกี่ยวข้องในแต่ละเรคอร์ด)
+  customerId Int
+  customer   Customer @relation(fields: [customerId], references: [id])
+
+  quotationId Int?
+  quotation   Quotation? @relation(fields: [quotationId], references: [id])
+
+  negotiationId Int?
+  negotiation   Negotiation? @relation(fields: [negotiationId], references: [id])
+
+  closedDealId Int?
+  closedDeal   ClosedDeal? @relation(fields: [closedDealId], references: [id])
+
+  userId Int?
+  user   User? @relation(fields: [userId], references: [id])
+
+  // Audit
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([customerId])
+  @@index([quotationId])
+  @@index([negotiationId])
+  @@index([closedDealId])
+  @@index([userId])
+  @@index([stage, metric])
+  @@index([startedAt])
 }
